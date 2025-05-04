@@ -19,21 +19,6 @@ public class TestNGTest {
         System.out.println("Username: "+ inputMatirx.get("username"));
         System.out.println("Password: "+ inputMatirx.get("password"));
     }
-    @Test(dataProvider = "HttpGet", dataProviderClass = HttpUtils.class)
-    public void testGet(CloseableHttpResponse inputResponse) throws IOException {
-        int statusCode = inputResponse.getCode();
-
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputResponse.getEntity().getContent()));
-
-        String fullResponse = "";
-        String line = "";
-
-        while ((line = bufferedReader.readLine())!= null){
-            fullResponse += line  + "\r\n";
-        }
-        System.out.println(fullResponse);
-        Assert.assertTrue(statusCode == 200);
-    }
     @Test
     public void testBooks() throws IOException {
         BooksDTO books = HttpUtils.getBooks();

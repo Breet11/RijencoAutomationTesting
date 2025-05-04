@@ -8,22 +8,30 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.Header;
 import org.testng.annotations.DataProvider;
+import http.program.PropertyReader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
 public class HttpUtils {
-    @DataProvider(name ="HttpGet")
-    public static Object[][] getResponse() throws IOException {
-        CloseableHttpClient httpClient = HttpClients.createDefault();
-        HttpGet httpGet = new HttpGet("https://demoqa.com/BookStore/v1/Books");
+    @DataProvider(name = "endpointProvider")
+    public static Object[][] endpointProvider(){
+        Properties properties = PropertyReader.getAllProperties();
 
-        CloseableHttpResponse response = httpClient.execute(httpGet);
-
-        return new Object[][]{new Object[]{response}};
+        Object[][] data = new Object[properties.size()][1];
+        int i = 0;
+        for (String key : properties.stringPropertyNames()){
+            data[i++][0] = key;
+        }
+        return data;
     }
     public static BooksDTO getBooks() throws IOException {
         CloseableHttpClient httpClient = HttpClients.createDefault();
@@ -42,10 +50,20 @@ public class HttpUtils {
 
         ObjectMapper objectMapper = new ObjectMapper();
         BooksDTO books = objectMapper.readValue(fullResponse, new TypeReference<BooksDTO>(){});
-        //objectMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
-
-        //System.out.println(objectMapper.writeValueAsString(valCurs));
-
         return books;
+    }
+    public static HttpGet buildGetRequest(String url) throws IOException {
+        return new HttpGet(PropertyReader.getProperty(url));
+    }
+    public static String getHeader(CloseableHttpResponse response, String headerName){
+        List<Header> httpHeaders = Arrays.asList(response.getHeaders());
+        Header matchedHeader = httpHeaders.stream()
+                .filter(header -> headerName.equalsIgnoreCase(header.getName()))
+                .findFirst().orElseThrow(()-> new RuntimeException("Didn't find any headers"));
+        return matchedHeader.getValue();
+    }
+    public static boolean headerIsPresent(CloseableHttpResponse response, String headerName){
+        List<Header> httpHeaders  = Arrays.asList(response.getHeaders());
+        return httpHeaders.stream().anyMatch(header -> header.getName().equalsIgnoreCase(headerName));
     }
 }
