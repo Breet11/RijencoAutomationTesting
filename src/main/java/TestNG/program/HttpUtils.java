@@ -1,25 +1,26 @@
 package TestNG.program;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import http.program.dto.bookstore.BooksDTO;
+import http.program.dto.github.Rate_Limit;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.json.JSONObject;
 import org.testng.annotations.DataProvider;
 import http.program.PropertyReader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.http.HttpResponse;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 public class HttpUtils {
     @DataProvider(name = "endpointProvider")
@@ -55,6 +56,11 @@ public class HttpUtils {
     public static HttpGet buildGetRequest(String url) throws IOException {
         return new HttpGet(PropertyReader.getProperty(url));
     }
+    public static HttpGet buildGetRequest(String url, String query) throws IOException {
+        String property = PropertyReader.getProperty(url);
+        String fullUrl = property + query;
+        return new HttpGet(fullUrl);
+    }
     public static String getHeader(CloseableHttpResponse response, String headerName){
         List<Header> httpHeaders = Arrays.asList(response.getHeaders());
         Header matchedHeader = httpHeaders.stream()
@@ -65,5 +71,30 @@ public class HttpUtils {
     public static boolean headerIsPresent(CloseableHttpResponse response, String headerName){
         List<Header> httpHeaders  = Arrays.asList(response.getHeaders());
         return httpHeaders.stream().anyMatch(header -> header.getName().equalsIgnoreCase(headerName));
+    }
+    public static Object getValueFor(JSONObject jsonObject, String key){
+        return jsonObject.get(key);
+    }
+    public static <T> T unmarshall(CloseableHttpResponse response, Class<T> clazz) throws IOException, ParseException {
+        String jsonBody = EntityUtils.toString(response.getEntity());
+        return new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .readValue(jsonBody, clazz);
+    }
+    @SuppressWarnings("unckecked")
+    @JsonProperty("resources")
+    public static Rate_Limit unmarshallNested(CloseableHttpResponse response) throws IOException, ParseException {
+        String jsonBody = EntityUtils.toString(response.getEntity());
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> map = objectMapper.readValue(jsonBody, Map.class);
+
+        Map<String, Object> resources = (Map<String, Object>) map.get("resources");
+        Map<String, Object> core  = (Map<String, Object>) resources.get("core");
+        Map<String, Object> search = (Map<String, Object>) resources.get("search");
+
+        int coreLimit = (Integer) core.get("limit");
+        int searchLimit = (Integer) search.get("limit");
+
+        return new Rate_Limit(coreLimit, searchLimit);
     }
 }
